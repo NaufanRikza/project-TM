@@ -7,4 +7,5 @@ class Pins(Enum):
     MOTOR_CONTROLLER_IN1 = 24
     MOTOR_CONTROLLER_IN2 = 25
     BUZZER = 8
+    LED_PORT = 7
     CAMERA_PORT = 0

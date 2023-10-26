@@ -9,7 +9,7 @@ class Client:
 
     def ping(self) -> bool:
         try:
-            requests.get("https://www.google.com")
+            requests.get("https://www.google.com", timeout=(4, 4))
             return True
         except requests.ConnectionError:
             return False
@@ -24,8 +24,12 @@ class Client:
             raise Exception("Client get method error")
 
     def post(self, url, data=None, params=None, files=None):
-        res = requests.post("{0}{1}".format(
-            self.__baseUrl, url),
-            data=data, timeout=(5, 5), params=params, files=files)
+        try:
+            res = requests.post("{0}{1}".format(
+                self.__baseUrl, url),
+                data=data, timeout=(5, 5), params=params, files=files)
 
-        return res.json()
+            return res.json()
+        except Exception as e:
+            print(e)
+            raise Exception("Client post method error")

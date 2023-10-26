@@ -1,5 +1,4 @@
-from enum import Enum
-class Pins(Enum):
+class Pins:
     SERVO_1 = 12
     SERVO_2 = 18
     SERVO_3 = 13
@@ -7,5 +6,5 @@ class Pins(Enum):
     MOTOR_CONTROLLER_IN1 = 24
     MOTOR_CONTROLLER_IN2 = 25
     BUZZER = 8
-    LED_PORT = 7
+    LED_PORT = 4
     CAMERA_PORT = 0

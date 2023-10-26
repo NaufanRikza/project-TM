@@ -8,6 +8,7 @@ class Led:
             self.__port = port
             self.__inverted = inverted
             GPIO.setup(port, GPIO.OUT)
+            GPIO.output(self.__port, GPIO.LOW)
         except Exception as e:
             print(e)
             raise Exception("Led initialization error");

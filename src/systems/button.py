@@ -5,7 +5,7 @@ class Button:
     def __init__(self, pin) -> None:
         try:
             self.__pin = pin
-            GPIO.setup(self.__pin, GPIO.IN)
+            GPIO.setup(self.__pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         except Exception as e:
             print(e)
             raise Exception("Button initilizing failed at pin {0} ".format(self.__pin))

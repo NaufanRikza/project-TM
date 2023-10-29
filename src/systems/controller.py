@@ -19,17 +19,15 @@ class Controller:
     __startButton = None
     __ledIndicator = None
     __getCommandProcess = None
-    __movementProcess = None
     __captureProcess = None
+    __dripProcess = None
     __indicatorProcess = None
-    __commandQueue = None
-    __captureQueue = None
 
     def __init__(self) -> None:
         try:
             GPIO.setmode(GPIO.BCM)
-            self.__client = Client("http://193.203.164.177:1337")
-            # self.__camera = Camera(Pins.CAMERA_PORT.value)
+            self.__client = Client("http://192.168.1.3:4000")
+            self.__camera = Camera(Pins.CAMERA_PORT)
             self.__positioner = Positioner(
                 Pins.SERVO_1, Pins.SERVO_2, Pins.SERVO_3)
             self.__WaterDripper = WaterDripper(
@@ -37,44 +35,24 @@ class Controller:
             self.__startButton = Button(Pins.START_BUTTON)
             self.__ledIndicator = Led(Pins.LED_PORT)
 
-            self.__commandQueue = Queue(1)
-            self.__captureQueue = Queue(1)
-
-            self.__getCommandProcess = Process(
-                target=self.getCommandHandle, args=(self.__commandQueue, self.__captureQueue,))
-            # self.__getCommandProcess.start()
-
-            self.__movementProcess = Process(
-                target=self.movement, args=(self.__commandQueue,))
-            # self.__movementProcess.start()
-
-            self.__captureQueue = Process(
-                target=self.capture, args=(self.__captureQueue,))
-            # self.__captureQueue.start()
-
-            self.__indicatorProcess = Process(target=self.indicatorAct)
+            self.__getCommandProcess = Thread(
+                target=self.getCommandHandle)
+            self.__dripProcess = Process(
+                target=self.drip
+            )
+            self.__indicatorProcess = Thread(target=self.indicatorAct)
+            time.sleep(1)
 
         except Exception as e:
             print(e)
 
     def start(self):
-        print("checking connection...")
-        if self.checkConnection():
-            print("Connection Online")
-            self.startProcesses()
-
-            while True:
-                if self.__startButton.isClicked():
-                    print("clicked")
-        else:
-            print("no connection")
-
-    def startProcesses(self):
-        # self.__getCommandProcess.start()
-        # self.__movementProcess.start()
-        # self.__captureQueue.start()
-        # self.__ledIndicator.on()
-        self.__indicatorProcess.start()
+        # if self.checkConnection():
+        #     self.__getCommandProcess.start()
+        #     self.__indicatorProcess.start()
+        #     self.__dripProcess.start()
+        # self.__positioner.test()
+        pass
 
     def checkConnection(self) -> bool:
         if self.__client.ping():
@@ -82,7 +60,8 @@ class Controller:
         else:
             return False
 
-    def getCommandHandle(self, commandQueue: Queue, captureQueue: Queue):
+    def getCommandHandle(self):
+        isCaptured = False
         try:
             print("job start")
             while True:
@@ -90,50 +69,49 @@ class Controller:
                 cmd = res["data"]["attributes"]
                 capture = res["data"]["attributes"]["status"]
 
-                if commandQueue.full():
-                    commandQueue.get()
+                if capture and not isCaptured:
+                    isCaptured = True
+                    self.__captureProcess = Process(target=self.capture)
+                    self.__captureProcess.start()
 
-                if captureQueue.full():
-                    captureQueue.get()
-
-                commandQueue.put(cmd)
-                captureQueue.put(capture)
+                if cmd["forward"]:
+                    self.__positioner.moveForward()
+                elif cmd["backward"]:
+                    self.__positioner.moveBackward()
+                elif cmd["left"]:
+                    print("here")
+                    self.__positioner.moveLeft()
+                elif cmd["right"]:
+                    self.__positioner.moveRight()
 
                 time.sleep(0.3)
         except Exception as e:
             print(e)
 
-    def movement(self, commandQueue: Queue):
+    def capture(self):
         try:
-            print("get command start")
-            while True:
-                # pass
-                data = None
-                if commandQueue.full():
-                    data = commandQueue.get()
-                if data:
-                    # print(data)
-                    pass
-                # print('from command job')
-
+            print("capturing Image")
+            self.__camera.capture()
         except Exception as e:
             print(e)
-        # self.__camera.capture()
 
-    def capture(self, captureQueue: Queue):
+    def drip(self):
+        isDrip = False
         try:
-            print("capture job start")
+            print("drip process start")
             while True:
-                status = False
-                if captureQueue.full():
-                    status = captureQueue.get()
+                # if self.__startButton.isClicked():
+                #     isDrip = not isDrip
 
-                if status:
-                    img = open(
-                        "/home/pi/Documents/project-TM/temp/code.png", 'rb')
-                    res = self.__client.post(
-                        "/api/captures", params={"populate": "*"}, files={"img-capture": img})
-                    # print(res)
+                # if(isDrip) :
+                #     self.__WaterDripper.startDrip()
+                # else:
+                #     self.__WaterDripper.stopDrip()
+
+                if self.__startButton.isClicked():
+                    self.__WaterDripper.dripTiming()
+                time.sleep(0.2)
+
         except Exception as e:
             print(e)
 

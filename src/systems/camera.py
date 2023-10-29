@@ -1,12 +1,14 @@
 import cv2 as cv
+import time
 
 class Camera:
     __camera = None
-
+    __port = None
     def __init__(self, port):
         try:
-            self.__camera = cv.VideoCapture(0)
-            self.__camera.set(cv.CAP_PROP_POS_FRAMES, 200)
+            self.__port = port
+            self.__camera = cv.VideoCapture(self.__port)
+            time.sleep(0.8)
         except Exception as e:
             print(e)
             raise Exception("Camera initialization error")
@@ -37,10 +39,11 @@ class Camera:
         try:
             ret, image = self.__camera.read()
             if(not ret):
+                print("capture failed")
                 return
             
-            cv.imwrite("/home/pi/Documents/projects/project-TM/temp/temp.jpeg", image)
-            self.__camera.release()
+            cv.imwrite("/home/pi/Documents/project/project-TM/temp/temp1.jpeg", image)
+            print("capture success")
 
         except Exception as e:
             self.__camera.release()

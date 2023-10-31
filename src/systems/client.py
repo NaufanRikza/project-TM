@@ -1,5 +1,5 @@
 import requests
-
+import os
 
 class Client:
     __baseUrl = None
@@ -27,9 +27,29 @@ class Client:
         try:
             res = requests.post("{0}{1}".format(
                 self.__baseUrl, url),
-                data=data, timeout=(5, 5), params=params, files=files)
+                data=data, timeout=(5, 5), params=params, files=files, headers={"Authorization" : "{0} {1}".format("Bearer", os.getenv("API_KEY"))})
 
             return res.json()
         except Exception as e:
             print(e)
             raise Exception("Client post method error")
+        
+    def put(self, url, key):
+        try:
+            res = requests.put("{0}{1}".format(
+                self.__baseUrl, url),
+                data={ 
+                    "data": {
+                        "id": 1,
+                        "attributes": {
+                            key : False
+                        }
+                    },
+                    "meta": {}
+                    }, timeout=(5, 5),
+                headers={"Authorization" : "{0} {1}".format("Bearer", os.getenv("API_KEY"))})
+
+            return res.json()
+        except Exception as e:
+            print(e)
+            raise Exception("Client put method error")        

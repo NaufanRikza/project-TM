@@ -40,11 +40,11 @@ class Camera:
             ret, image = self.__camera.read()
             if(not ret):
                 print("capture failed")
-                return
+                return False
             
             cv.imwrite("/home/pi/Documents/project/project-TM/temp/temp1.jpeg", image)
             print("capture success")
-
+            return True
         except Exception as e:
             self.__camera.release()
             print(e)

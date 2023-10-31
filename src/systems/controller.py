@@ -9,6 +9,8 @@ from data.constant import Pins
 import time
 from multiprocessing import Process, Queue
 from threading import Thread
+from dotenv import load_dotenv
+import os
 
 
 class Controller:
@@ -22,11 +24,14 @@ class Controller:
     __captureProcess = None
     __dripProcess = None
     __indicatorProcess = None
+    __buttonProcess = None
+    __buttonQueue = Queue(1)
 
     def __init__(self) -> None:
         try:
+            load_dotenv(dotenv_path=os.path.join(os.getcwd(), ".env"))
             GPIO.setmode(GPIO.BCM)
-            self.__client = Client("http://192.168.1.3:4000")
+            self.__client = Client(os.getenv("BASE_URL"))
             self.__camera = Camera(Pins.CAMERA_PORT)
             self.__positioner = Positioner(
                 Pins.SERVO_1, Pins.SERVO_2, Pins.SERVO_3)
@@ -34,25 +39,31 @@ class Controller:
                 Pins.MOTOR_CONTROLLER_IN1, Pins.MOTOR_CONTROLLER_IN2)
             self.__startButton = Button(Pins.START_BUTTON)
             self.__ledIndicator = Led(Pins.LED_PORT)
-
-            self.__getCommandProcess = Thread(
-                target=self.getCommandHandle)
-            self.__dripProcess = Process(
-                target=self.drip
-            )
-            self.__indicatorProcess = Thread(target=self.indicatorAct)
             time.sleep(1)
 
         except Exception as e:
             print(e)
 
     def start(self):
-        # if self.checkConnection():
-        #     self.__getCommandProcess.start()
-        #     self.__indicatorProcess.start()
-        #     self.__dripProcess.start()
+        if not self.checkConnection():
+            while True:
+                if self.checkConnection():
+                    break
+
+        self.__getCommandProcess = Thread(
+            target=self.getCommandHandle)
+        self.__dripProcess = Process(
+            target=self.drip,
+            args=(self.__buttonQueue,)
+        )
+        self.__indicatorProcess = Thread(target=self.indicatorAct)
+        self.__buttonProcess = Thread(target=self.button, args=(self.__buttonQueue,))
+        self.__getCommandProcess.start()
+        self.__indicatorProcess.start()
+        self.__dripProcess.start()
+        self.__buttonProcess.start()
         # self.__positioner.test()
-        pass
+        # pass
 
     def checkConnection(self) -> bool:
         if self.__client.ping():
@@ -61,56 +72,84 @@ class Controller:
             return False
 
     def getCommandHandle(self):
-        isCaptured = False
-        try:
-            print("job start")
-            while True:
+        print("command process start")
+        while True:
+            try:
                 res = self.__client.get("/api/device-status")
                 cmd = res["data"]["attributes"]
                 capture = res["data"]["attributes"]["status"]
+                print("capture : {}".format(capture))
 
-                if capture and not isCaptured:
-                    isCaptured = True
+                if capture:
                     self.__captureProcess = Process(target=self.capture)
                     self.__captureProcess.start()
 
+                key = None
                 if cmd["forward"]:
-                    self.__positioner.moveForward()
+                    self.__positioner.move(self.__positioner.Movement.FORWARD)
+                    key = "forward"
                 elif cmd["backward"]:
-                    self.__positioner.moveBackward()
+                    self.__positioner.move(self.__positioner.Movement.BACKWARD)
+                    key = "backward"
                 elif cmd["left"]:
-                    print("here")
-                    self.__positioner.moveLeft()
+                    self.__positioner.move(self.__positioner.Movement.LEFT)
+                    key = "left"
                 elif cmd["right"]:
-                    self.__positioner.moveRight()
+                    self.__positioner.move(self.__positioner.Movement.RIGHT)
+                    key = "right"
+                elif cmd["up"]:
+                    self.__positioner.move(self.__positioner.Movement.UP)
+                    key = "up"
+                elif cmd["down"]:
+                    self.__positioner.move(self.__positioner.Movement.DOWN)
+                    key = "down"
 
-                time.sleep(0.3)
-        except Exception as e:
-            print(e)
+                if key:
+                    res = self.__client.put("/api/device-status", key)
+                    print(res)
+                time.sleep(0.2)
+            except Exception as e:
+                print(e)
 
     def capture(self):
+        print("capture process start")
         try:
             print("capturing Image")
-            self.__camera.capture()
+            if self.__camera.capture():
+                img = open(
+                    "../../temp/temp1.jpeg", "rb")
+                res = self.__client.post(
+                    "/api/captures", params={"populate": "*"}, files=img)
+                print(res)
+                if res["error"]["status"] == 200:
+                    res = self.__client.put("/api/device-status", "status")
         except Exception as e:
             print(e)
 
-    def drip(self):
+    def button(self, buttonQueue : Queue):
         isDrip = False
+        print("button process start")
         try:
-            print("drip process start")
             while True:
-                # if self.__startButton.isClicked():
-                #     isDrip = not isDrip
-
-                # if(isDrip) :
-                #     self.__WaterDripper.startDrip()
-                # else:
-                #     self.__WaterDripper.stopDrip()
-
                 if self.__startButton.isClicked():
-                    self.__WaterDripper.dripTiming()
+                    isDrip = not isDrip
+                    buttonQueue.put(isDrip)
                 time.sleep(0.2)
+        except Exception as e:
+            print(e)
+
+    def drip(self, buttonQueue : Queue):
+        isDrip = False
+        print("drip process start")
+        try:
+            while True:
+                if buttonQueue.full():
+                    isDrip = buttonQueue.get()
+
+                if (isDrip):
+                    self.__WaterDripper.startDrip()
+                else:
+                    self.__WaterDripper.stopDrip()
 
         except Exception as e:
             print(e)

@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('/home/pi/Documents/project/project-TM/src/systems/', 'systems')],
+    datas=[('/systems', 'systems'), ('/data', 'data')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

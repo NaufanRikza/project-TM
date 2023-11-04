@@ -16,7 +16,8 @@ class Positioner:
     __servo3Pin = None
     __K1 = 45
     __K2 = 18
-    __NEUTRAL_DEG = 80
+    __NEUTRAL_DEG = {"servo1" : 83 , "servo2" : 80, "servo3" : 75}
+    # __NEUTRAL_DEG = 90
 
     __MAX_DUTY = 12.5
     __MIN_DUTY = 2.5
@@ -28,11 +29,11 @@ class Positioner:
         MAX_NEGATIVE_Y = -MAX_POSITIVE_Y
         MAX_POSITIVE_Z = 89
         MAX_NEGATIVE_Z = 130
-        POS_INCREMENTOR = 1
-        POS_DECREMENTOR = 1
+        POS_INCREMENTOR = 2
+        POS_DECREMENTOR = 2
         x = 0
         y = 0
-        z = 90
+        z = 89
 
     class Movement(Enum):
         FORWARD = 0
@@ -43,8 +44,8 @@ class Positioner:
         DOWN = 5
 
     __position = Position()
-    __tetha = {"servo1": __NEUTRAL_DEG,
-               "servo2": __NEUTRAL_DEG, "servo3": __NEUTRAL_DEG}
+    __tetha = {"servo1": __NEUTRAL_DEG["servo1"],
+               "servo2": __NEUTRAL_DEG["servo2"], "servo3": __NEUTRAL_DEG["servo3"]}
 
     def __init__(self, servo1, servo2, servo3) -> None:
         try:
@@ -114,8 +115,8 @@ class Positioner:
 
     def calcInverseKinematic(self, x0, y0, z0):
         stat = None
-        if (x0 > 0 or y0 > 0):
-            x0, y0 = self.rotateAxis(x0, y0, 30)
+        # if (x0 > 0 or y0 > 0):
+        #     x0, y0 = self.rotateAxis(x0, y0, 30)
 
         stat, self.__tetha["servo1"] = self.calcAngleYZ(x0, y0, z0)
         if stat:
@@ -127,7 +128,7 @@ class Positioner:
         return stat
 
     def write(self, servo, deg):
-        norm_deg = self.__NEUTRAL_DEG + deg
+        norm_deg = self.__NEUTRAL_DEG[servo] + deg
         duty = self.degToDuty(norm_deg)
         if duty > self.__MAX_DUTY:
             duty = self.__MAX_DUTY
@@ -144,9 +145,9 @@ class Positioner:
         # self.__servo2 = GPIO.PWM(self.__servo2Pin, 50)
         # self.__servo3 = GPIO.PWM(self.__servo3Pin, 50)
 
-        duty1 = self.degToDuty(self.__NEUTRAL_DEG + self.__tetha["servo1"])
-        duty2 = self.degToDuty(self.__NEUTRAL_DEG + self.__tetha["servo2"])
-        duty3 = self.degToDuty(self.__NEUTRAL_DEG + self.__tetha["servo3"])
+        duty1 = self.degToDuty(self.__NEUTRAL_DEG["servo1"] + self.__tetha["servo1"])
+        duty2 = self.degToDuty(self.__NEUTRAL_DEG["servo2"] + self.__tetha["servo2"])
+        duty3 = self.degToDuty(self.__NEUTRAL_DEG["servo3"] + self.__tetha["servo3"])
 
         self.__servo1.start(duty1)
         self.__servo2.start(duty2)
@@ -176,97 +177,115 @@ class Positioner:
 
     def move(self, movement: Movement):
         try:
-            for i in range(0, 5):
-                if movement == self.Movement.FORWARD:
-                    self.__position.x += self.__position.POS_INCREMENTOR
-                elif movement == self.Movement.BACKWARD:
-                    self.__position.x -= self.__position.POS_DECREMENTOR
-                elif movement == self.Movement.LEFT:
-                    self.__position.y -= self.__position.POS_DECREMENTOR
-                elif movement == self.Movement.RIGHT:
-                    self.__position.y += self.__position.POS_INCREMENTOR
-                elif movement == self.Movement.UP:
-                    self.__position.z -= self.__position.POS_DECREMENTOR
-                elif movement == self.Movement.DOWN:
-                    self.__position.z += self.__position.POS_INCREMENTOR
+            if movement == self.Movement.FORWARD:
+                self.__position.y -= self.__position.POS_DECREMENTOR
+            elif movement == self.Movement.BACKWARD:
+                self.__position.y += self.__position.POS_INCREMENTOR
+            elif movement == self.Movement.LEFT:
+                # self.__position.y -= self.__position.POS_DECREMENTOR
+                self.__position.x += self.__position.POS_INCREMENTOR
+            elif movement == self.Movement.RIGHT:
+                # self.__position.y += self.__position.POS_INCREMENTOR
+                self.__position.x -= self.__position.POS_DECREMENTOR
+            elif movement == self.Movement.UP:
+                self.__position.z -= self.__position.POS_DECREMENTOR
+            elif movement == self.Movement.DOWN:
+                self.__position.z += self.__position.POS_INCREMENTOR
 
-                if self.__position.x > self.__position.MAX_POSITIVE_X:
-                    self.__position.x = self.__position.MAX_POSITIVE_X
-                elif self.__position.x < self.__position.MAX_NEGATIVE_X:
-                    self.__position.x = self.__position.MAX_NEGATIVE_X
+            if self.__position.x > self.__position.MAX_POSITIVE_X:
+                self.__position.x = self.__position.MAX_POSITIVE_X
+            elif self.__position.x < self.__position.MAX_NEGATIVE_X:
+                self.__position.x = self.__position.MAX_NEGATIVE_X
 
-                if self.__position.y > self.__position.MAX_POSITIVE_Y:
-                    self.__position.y = self.__position.MAX_POSITIVE_Y
-                elif self.__position.y < self.__position.MAX_NEGATIVE_Y:
-                    self.__position.y = self.__position.MAX_NEGATIVE_Y
+            if self.__position.y > self.__position.MAX_POSITIVE_Y:
+                self.__position.y = self.__position.MAX_POSITIVE_Y
+            elif self.__position.y < self.__position.MAX_NEGATIVE_Y:
+                self.__position.y = self.__position.MAX_NEGATIVE_Y
 
-                if self.__position.z < self.__position.MAX_POSITIVE_Z:
-                    self.__position.z = self.__position.MAX_POSITIVE_Z
-                elif self.__position.z > self.__position.MAX_NEGATIVE_Z:
-                    self.__position.z = self.__position.MAX_NEGATIVE_Z
+            if self.__position.z < self.__position.MAX_POSITIVE_Z:
+                self.__position.z = self.__position.MAX_POSITIVE_Z
+            elif self.__position.z > self.__position.MAX_NEGATIVE_Z:
+                self.__position.z = self.__position.MAX_NEGATIVE_Z
                 
                 
-                print(self.__position.x, self.__position.y,self.__position.z)
-                stat = self.calcInverseKinematic(
-                    self.__position.x, self.__position.y, self.__position.z)
-                if not stat:
-                    raise Exception("Error Inverse")
+            stat = self.calcInverseKinematic(
+                self.__position.x, self.__position.y, self.__position.z)
+            if not stat:
+                raise Exception("Error Inverse")
+            
+            print("moving")
+            self.start()
 
-                self.start()
+            self.write("servo1", self.__tetha["servo1"])
+            self.write("servo2", self.__tetha["servo2"])
+            self.write("servo3", self.__tetha["servo3"])
+            time.sleep(0.04)
 
-                self.write("servo1", self.__tetha["servo1"])
-                self.write("servo2", self.__tetha["servo2"])
-                self.write("servo3", self.__tetha["servo3"])
-
-                time.sleep(0.04)
-
-                self.end()
+            self.end()
         except Exception as e:
             print(e)
 
     def test(self):
         print("test")
-        # stat = self.calcInverseKinematic(10, 0, 90)
-        # self.start()
-        # self.write("servo1", self.__tetha["servo1"])
-        # self.write("servo2", self.__tetha["servo2"])
-        # self.write("servo3", self.__tetha["servo3"])
-        # time.sleep(0.1)
-        # self.end()
+        # for i in range(40, 0, 5):
+        #     stat = self.calcInverseKinematic(i, 0, 90)
+        #     self.start()
+        #     self.write("servo1", self.__tetha["servo1"])
+        #     self.write("servo2", self.__tetha["servo2"])
+        #     self.write("servo3", self.__tetha["servo3"])
+        #     time.sleep(0.3)
+        #     self.end()
         while True:
-            
+            pass
+            # for i in range(0, 181, 10):
+            #     # stat = self.calcInverseKinematic(i, 0, 90)
+            #     self.start()
+            #     duty = self.degToDuty(i)
+            #     self.generatePWM(servo="servo1", dutycycle=duty)
+            #     time.sleep(0.1)
+            #     self.end()
 
-            for i in range(0, 41, 5):
-                stat = self.calcInverseKinematic(i, 0, 90)
+            # for i in range(181, 0, -10):
+            #     # stat = self.calcInverseKinematic(i, 0, 90)
+            #     self.start()
+            #     duty = self.degToDuty(i)
+            #     self.generatePWM(servo="servo1", dutycycle=duty)
+            #     time.sleep(0.1)
+            #     self.end()
+
+            for i in range(0, 41, 1):
+                stat = self.calcInverseKinematic(0, i, 90)
                 self.start()
                 self.write("servo1", self.__tetha["servo1"])
                 self.write("servo2", self.__tetha["servo2"])
                 self.write("servo3", self.__tetha["servo3"])
-                time.sleep(0.1)
+                time.sleep(0.02)
                 self.end()
 
-            # for i in range(40, 1, -1):
-            #     stat = self.calcInverseKinematic(i, 0, 90)
-            #     self.write("servo1", self.__tetha["servo1"])
-            #     self.write("servo2", self.__tetha["servo2"])
-            #     self.write("servo3", self.__tetha["servo3"])
-            #     time.sleep(0.02)
+            for i in range(40, 0, -1):
+                stat = self.calcInverseKinematic(0, i, 90)
+                self.write("servo1", self.__tetha["servo1"])
+                self.write("servo2", self.__tetha["servo2"])
+                self.write("servo3", self.__tetha["servo3"])
+                time.sleep(0.02)
+                self.end()
 
-            # for i in range(0, -41, -1):
-            #     stat = self.calcInverseKinematic(i, 0, 90)
-            #     self.write("servo1", self.__tetha["servo1"])
-            #     self.write("servo2", self.__tetha["servo2"])
-            #     self.write("servo3", self.__tetha["servo3"])
-            #     time.sleep(0.02)
+            for i in range(0, -41, -1):
+                stat = self.calcInverseKinematic(0, i, 90)
+                self.write("servo1", self.__tetha["servo1"])
+                self.write("servo2", self.__tetha["servo2"])
+                self.write("servo3", self.__tetha["servo3"])
+                time.sleep(0.02)
+                self.end()
 
-            # for i in range(-40, 1, 1):
-            #     stat = self.calcInverseKinematic(i, 0, 90)
-            #     self.write("servo1", self.__tetha["servo1"])
-            #     self.write("servo2", self.__tetha["servo2"])
-            #     self.write("servo3", self.__tetha["servo3"])
-            #     time.sleep(0.02)
-            self.end()
-            # break
+            for i in range(-40, 1, 1):
+                stat = self.calcInverseKinematic(0, i, 90)
+                self.write("servo1", self.__tetha["servo1"])
+                self.write("servo2", self.__tetha["servo2"])
+                self.write("servo3", self.__tetha["servo3"])
+                time.sleep(0.02)
+                self.end()
+            break
 
             # for i in range(40, 10, -10):
 

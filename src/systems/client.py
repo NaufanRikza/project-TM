@@ -9,7 +9,7 @@ class Client:
 
     def ping(self) -> bool:
         try:
-            requests.get("https://www.google.com", timeout=(4, 4))
+            requests.get("https://www.google.com", timeout=4)
             return True
         except requests.ConnectionError:
             return False
@@ -17,7 +17,7 @@ class Client:
     def get(self, url, params=None):
         try:
             res = requests.get("{0}{1}".format(
-                self.__baseUrl, url), timeout=(5, 5), params=params)
+                self.__baseUrl, url), timeout=5, params=params)
             return res.json()
         except Exception as e:
             print(e)
@@ -27,26 +27,28 @@ class Client:
         try:
             res = requests.post("{0}{1}".format(
                 self.__baseUrl, url),
-                data=data, timeout=(5, 5), params=params, files=files, headers={"Authorization" : "{0} {1}".format("Bearer", os.getenv("API_KEY"))})
-
+                data=data, timeout=5, params=params, files=files, headers={"Authorization" : "{0} {1}".format("Bearer", os.getenv("API_KEY"))})
+            
             return res.json()
         except Exception as e:
             print(e)
             raise Exception("Client post method error")
         
-    def put(self, url, key):
+    def put(self, url, key=None):
         try:
             res = requests.put("{0}{1}".format(
                 self.__baseUrl, url),
-                data={ 
-                    "data": {
-                        "id": 1,
-                        "attributes": {
-                            key : False
+                json={ 
+                        "data": {
+                            "status": False,
+                            "forward": False,
+                            "backward": False,
+                            "right": False,
+                            "left": False,
+                            "up": False,
+                            "down": False
                         }
-                    },
-                    "meta": {}
-                    }, timeout=(5, 5),
+                    }, timeout=5,
                 headers={"Authorization" : "{0} {1}".format("Bearer", os.getenv("API_KEY"))})
 
             return res.json()
